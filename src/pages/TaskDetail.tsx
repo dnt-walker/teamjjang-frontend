@@ -13,7 +13,12 @@ import {
   message,
   Row,
   Col,
-  Table
+  Table,
+  Form,
+  Input,
+  DatePicker,
+  Tooltip,
+  Collapse
 } from 'antd';
 import { 
   ArrowLeftOutlined,
@@ -22,14 +27,21 @@ import {
   EditOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  PlusOutlined,
+  DownOutlined,
+  RightOutlined,
+  SaveOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { taskApi } from '../services/api';
+import { taskApi, jobApi } from '../services/api';
 import { tasks } from '../mocks/data';
 import AppLayout from '../components/layout/AppLayout';
 
 const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 interface Job {
   id: number;
@@ -60,6 +72,11 @@ const TaskDetail = () => {
   
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<number[]>([]);
+  const [showJobForm, setShowJobForm] = useState<boolean>(false);
+  const [jobFormLoading, setJobFormLoading] = useState<boolean>(false);
+  
+  const [form] = Form.useForm();
   
   useEffect(() => {
     const fetchTaskDetails = async () => {
@@ -93,12 +110,95 @@ const TaskDetail = () => {
     }
   };
 
+  // 작업 추가 제출 핸들러
+  const handleJobSubmit = async (values: any) => {
+    try {
+      setJobFormLoading(true);
+      
+      // 시간 데이터 변환
+      const jobData = {
+        ...values,
+        startTime: values.timeRange?.[0]?.format ? values.timeRange[0].format() : new Date(values.timeRange[0]).toISOString(),
+        endTime: values.timeRange?.[1]?.format ? values.timeRange[1].format() : new Date(values.timeRange[1]).toISOString(),
+        completed: false,
+        completionTime: null
+      };
+      delete jobData.timeRange;
+      
+      // API 호출 (현재는 목업 데이터 사용 중이므로 임시 구현)
+      if (task && task.id) {
+        // 실제 API 호출 대신 목업 데이터 수정
+        const newJob = {
+          id: Date.now(), // 임시 ID 생성
+          ...jobData
+        };
+        
+        // 태스크에 새 작업 추가
+        const updatedJobs = [...(task.jobs || []), newJob];
+        setTask({
+          ...task,
+          jobs: updatedJobs
+        });
+        
+        message.success('작업이 추가되었습니다.');
+        setShowJobForm(false);
+        form.resetFields();
+      }
+    } catch (error) {
+      console.error('Error adding job:', error);
+      message.error('작업 추가 중 오류가 발생했습니다.');
+    } finally {
+      setJobFormLoading(false);
+    }
+  };
+  
+  // 행 확장 토글 핸들러
+  const handleRowExpand = (expanded: boolean, record: Job) => {
+    setExpandedRowKeys(expanded ? [record.id] : []);
+  };
+  
+  // 확장된 행 렌더링
+  const expandedRowRender = (record: Job) => {
+    return (
+      <div style={{ padding: '16px 40px', backgroundColor: '#f5f5f5' }}>
+        <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
+          <Descriptions.Item label="작업명">{record.name}</Descriptions.Item>
+          <Descriptions.Item label="담당자">
+            <Tag icon={<UserOutlined />}>{record.assignedUser}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="상태">
+            {record.completed ? (
+              <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>
+            ) : (
+              <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="시작 시간">
+            {record.startTime ? new Date(record.startTime).toLocaleString() : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="종료 예정 시간">
+            {record.endTime ? new Date(record.endTime).toLocaleString() : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="완료 시간">
+            {record.completionTime ? new Date(record.completionTime).toLocaleString() : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="작업 설명" span={3}>
+            <Paragraph>{record.description || '설명이 없습니다.'}</Paragraph>
+          </Descriptions.Item>
+        </Descriptions>
+      </div>
+    );
+  };
+  
   // 작업 테이블 컬럼 정의
   const jobColumns: ColumnsType<Job> = [
     {
       title: '작업명',
       dataIndex: 'name',
       key: 'name',
+      render: (text) => (
+        <span style={{ fontWeight: 500 }}>{text}</span>
+      )
     },
     {
       title: '담당자',
@@ -130,6 +230,21 @@ const TaskDetail = () => {
           return <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>;
         }
       },
+    },
+    {
+      title: '',
+      key: 'expand',
+      width: 50,
+      render: (_, record) => (
+        <Button 
+          type="text" 
+          icon={expandedRowKeys.includes(record.id) ? <DownOutlined /> : <RightOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRowExpand(!expandedRowKeys.includes(record.id), record);
+          }}
+        />
+      ),
     },
   ];
   
@@ -237,13 +352,21 @@ const TaskDetail = () => {
       <Card 
         title="작업 목록" 
         extra={
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}/jobs`)}
-          >
-            작업 관리
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setShowJobForm(!showJobForm)}
+            >
+              작업 추가
+            </Button>
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}/jobs`)}
+            >
+              작업 관리
+            </Button>
+          </Space>
         }
       >
         {task.jobs && task.jobs.length > 0 ? (
@@ -252,9 +375,85 @@ const TaskDetail = () => {
             dataSource={task.jobs.map(job => ({ ...job, key: job.id }))} 
             pagination={false}
             size="middle"
+            expandable={{
+              expandedRowRender,
+              expandedRowKeys,
+              onExpand: handleRowExpand
+            }}
+            onRow={(record) => ({
+              onClick: () => handleRowExpand(!expandedRowKeys.includes(record.id), record)
+            })}
           />
         ) : (
           <Empty description="등록된 작업이 없습니다" />
+        )}
+        
+        {/* 작업 추가 폼 */}
+        {showJobForm && (
+          <div style={{ marginTop: 24, border: '1px solid #f0f0f0', padding: 24, borderRadius: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Title level={5}>새 작업 추가</Title>
+              <Button 
+                type="text" 
+                icon={<CloseOutlined />} 
+                onClick={() => {
+                  setShowJobForm(false);
+                  form.resetFields();
+                }}
+              />
+            </div>
+            
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleJobSubmit}
+              initialValues={{
+                // DatePicker의 초기값을 설정하지 않음
+              }}
+            >
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="name"
+                    label="작업명"
+                    rules={[{ required: true, message: '작업명을 입력해주세요' }]}
+                  >
+                    <Input placeholder="작업명을 입력하세요" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="assignedUser"
+                    label="담당자"
+                    rules={[{ required: true, message: '담당자를 입력해주세요' }]}
+                  >
+                    <Input placeholder="담당자를 입력하세요" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item
+                name="timeRange"
+                label="시작/종료 시간"
+                rules={[{ required: true, message: '시간을 선택해주세요' }]}
+              >
+                <RangePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
+              
+              <Form.Item
+                name="description"
+                label="작업 설명"
+              >
+                <TextArea rows={4} placeholder="작업에 대한 설명을 입력하세요" />
+              </Form.Item>
+              
+              <Form.Item>
+                <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={jobFormLoading}>
+                  작업 추가
+                </Button>
+              </Form.Item>
+            </Form>
+          </div>
         )}
       </Card>
     </AppLayout>
