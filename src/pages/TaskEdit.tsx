@@ -175,12 +175,18 @@ const TaskEdit = () => {
   return (
     <AppLayout>
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
           <Button 
             icon={<ArrowLeftOutlined />} 
             onClick={handleCancel}
           >
             프로젝트로 돌아가기
+          </Button>
+          <Button 
+            type="primary"
+            onClick={() => navigate(`/projects/${projectId}/tasks/${taskId}/jobs`)}
+          >
+            작업 관리
           </Button>
         </div>
         
