@@ -151,7 +151,9 @@ const ProjectDetail = () => {
       dataIndex: 'name',
       key: 'name',
       render: (text, record) => (
-        <a onClick={() => navigate(`/projects/${id}/tasks/${record.id}/edit`)}>{text}</a>
+        <span>
+          <a onClick={() => navigate(`/projects/${id}/tasks/${record.id}`)}>{text}</a>
+        </span>
       ),
     },
     {

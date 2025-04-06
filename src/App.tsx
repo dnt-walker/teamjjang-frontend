@@ -10,6 +10,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import ProjectEdit from './pages/ProjectEdit';
 import TaskCreate from './pages/TaskCreate';
 import TaskEdit from './pages/TaskEdit';
+import TaskDetail from './pages/TaskDetail';
 import PrivateRoute from './components/PrivateRoute';
 import { useAuthStore } from './store/authStore';
 
@@ -75,7 +76,9 @@ function App() {
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/projects/:id/edit" element={<ProjectEdit />} />
             <Route path="/projects/:projectId/tasks/new" element={<TaskCreate />} />
+            <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetail />} />
             <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEdit />} />
+            <Route path="/projects/:projectId/tasks/:taskId/jobs" element={<TaskDetail />} />
           </Route>
           
           {/* 관리자 전용 경로 */}

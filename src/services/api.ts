@@ -98,7 +98,7 @@ export const authApi = {
 };
 
 // 백엔드 API 호출을 사용
-const useMockData = false;
+const useMockData = true;
 
 // 프로젝트 관련 API
 export const projectApi = {
@@ -309,20 +309,35 @@ export const taskApi = {
 // 작업 관련 API
 export const jobApi = {
   getJobsForTask: (taskId: number) => {
-    return api.get(`/tasks/${taskId}/jobs`);
+    return api.get(`/projects/1/tasks/${taskId}/jobs`);
   },
-  getJobById: (taskId: number, jobId: number) => {
-    return api.get(`/tasks/${taskId}/jobs/${jobId}`);
+  getJobById: (projectId: number, taskId: number, jobId: number) => {
+    return api.get(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}`);
   },
   createJob: (taskId: number, jobData: any) => {
-    return api.post(`/tasks/${taskId}/jobs`, jobData);
+    return api.post(`/projects/1/tasks/${taskId}/jobs`, jobData);
   },
-  updateJob: (taskId: number, jobId: number, jobData: any) => {
-    return api.put(`/tasks/${taskId}/jobs/${jobId}`, jobData);
+  updateJob: (projectId: number, taskId: number, jobId: number, jobData: any) => {
+    return api.put(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}`, jobData);
   },
-  deleteJob: (taskId: number, jobId: number) => {
-    return api.delete(`/tasks/${taskId}/jobs/${jobId}`);
+  deleteJob: (projectId: number, taskId: number, jobId: number) => {
+    return api.delete(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}`);
   },
+  completeJob: (projectId: number, taskId: number, jobId: number) => {
+    return api.patch(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}/complete`);
+  },
+  reopenJob: (projectId: number, taskId: number, jobId: number) => {
+    return api.patch(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}/reopen`);
+  },
+  updateJobStatus: (projectId: number, taskId: number, jobId: number, status: string) => {
+    return api.patch(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}/status?status=${status}`);
+  },
+  getJobSummary: (projectId: number, taskId: number) => {
+    return api.get(`/projects/${projectId}/tasks/${taskId}/jobs/summary`);
+  },
+  getJobStatsByUser: (projectId: number) => {
+    return api.get(`/projects/${projectId}/tasks/1/jobs/stats/users`);
+  }
 };
 
 // 사용자 관련 API
@@ -341,6 +356,140 @@ export const userApi = {
   },
   searchUsers: (params: { username?: string, email?: string, fullName?: string }) => {
     return api.get('/users/search', { params });
+  }
+};
+
+// 대시보드 관련 API
+export const dashboardApi = {
+  getSummary: () => {
+    if (useMockData) {
+      // 목업 데이터
+      return Promise.resolve({
+        data: {
+          totalProjects: 10,
+          activeProjects: 5,
+          myProjects: 3,
+          totalTasks: 45,
+          completedTasks: 23,
+          myTasks: 12,
+          overdueTasks: 2,
+          tasksDueThisWeek: 8,
+          taskStatusCounts: {
+            "미시작": 5,
+            "진행중": 17,
+            "완료": 23,
+            "지연": 2
+          },
+          jobStatusCounts: {
+            "created": 10,
+            "waiting": 15,
+            "in-process": 20,
+            "succeeded": 30,
+            "failed": 5,
+            "finished": 25,
+            "removed": 2
+          },
+          monthlyCompletionStats: {
+            "2025-01": 5,
+            "2025-02": 7,
+            "2025-03": 8,
+            "2025-04": 12,
+            "2025-05": 14,
+            "2025-06": 9
+          },
+          assigneeStats: {
+            "user1": 8,
+            "user2": 12,
+            "admin": 15,
+            "미할당": 10
+          }
+        }
+      });
+    }
+    return api.get('/dashboard/summary');
+  },
+  
+  getUpcomingTasks: (days = 7) => {
+    if (useMockData) {
+      // 목업 데이터
+      const today = new Date();
+      return Promise.resolve({
+        data: tasks.filter(task => {
+          if (task.completionDate) return false;
+          
+          const plannedEndDate = new Date(task.plannedEndDate);
+          const diffDays = Math.floor((plannedEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= days;
+        }).slice(0, 5)
+      });
+    }
+    return api.get(`/dashboard/upcoming-tasks?days=${days}`);
+  },
+  
+  getOverdueTasks: () => {
+    if (useMockData) {
+      // 목업 데이터
+      const today = new Date();
+      return Promise.resolve({
+        data: tasks.filter(task => {
+          if (task.completionDate) return false;
+          
+          const plannedEndDate = new Date(task.plannedEndDate);
+          return plannedEndDate < today;
+        }).slice(0, 5)
+      });
+    }
+    return api.get('/dashboard/overdue-tasks');
+  },
+  
+  getTaskCompletionStats: (months = 6) => {
+    if (useMockData) {
+      // 목업 데이터
+      return Promise.resolve({
+        data: {
+          "2025-01": 5,
+          "2025-02": 7,
+          "2025-03": 8,
+          "2025-04": 12,
+          "2025-05": 14,
+          "2025-06": 9
+        }
+      });
+    }
+    return api.get(`/dashboard/task-completion-stats?months=${months}`);
+  },
+  
+  getAssigneeStats: () => {
+    if (useMockData) {
+      // 목업 데이터
+      return Promise.resolve({
+        data: {
+          "user1": 8,
+          "user2": 12,
+          "admin": 15,
+          "미할당": 10
+        }
+      });
+    }
+    return api.get('/dashboard/assignee-stats');
+  },
+  
+  getJobStatusStats: () => {
+    if (useMockData) {
+      // 목업 데이터
+      return Promise.resolve({
+        data: {
+          "created": 10,
+          "waiting": 15,
+          "in-process": 20,
+          "succeeded": 30,
+          "failed": 5,
+          "finished": 25,
+          "removed": 2
+        }
+      });
+    }
+    return api.get('/dashboard/job-status-stats');
   }
 };
 
