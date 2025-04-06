@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { 
   Typography, 
   Card, 
@@ -18,7 +19,8 @@ import {
   Input,
   DatePicker,
   Tooltip,
-  Collapse
+  Collapse,
+  Switch
 } from 'antd';
 import { 
   ArrowLeftOutlined,
@@ -75,8 +77,12 @@ const TaskDetail = () => {
   const [expandedRowKeys, setExpandedRowKeys] = useState<number[]>([]);
   const [showJobForm, setShowJobForm] = useState<boolean>(false);
   const [jobFormLoading, setJobFormLoading] = useState<boolean>(false);
+  const [editingJobId, setEditingJobId] = useState<number | null>(null);
   
+  // 폼 참조 생성
+  const formRef = useRef<any>(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
   
   useEffect(() => {
     const fetchTaskDetails = async () => {
@@ -118,8 +124,8 @@ const TaskDetail = () => {
       // 시간 데이터 변환
       const jobData = {
         ...values,
-        startTime: values.timeRange?.[0]?.format ? values.timeRange[0].format() : new Date(values.timeRange[0]).toISOString(),
-        endTime: values.timeRange?.[1]?.format ? values.timeRange[1].format() : new Date(values.timeRange[1]).toISOString(),
+        startTime: values.timeRange ? values.timeRange[0]?.toISOString() : new Date().toISOString(),
+        endTime: values.timeRange ? values.timeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
         completed: false,
         completionTime: null
       };
@@ -155,31 +161,196 @@ const TaskDetail = () => {
   // 행 확장 토글 핸들러
   const handleRowExpand = (expanded: boolean, record: Job) => {
     setExpandedRowKeys(expanded ? [record.id] : []);
+    if (!expanded) {
+      setEditingJobId(null);
+    }
+  };
+  
+  // 작업 수정 시작
+  const startEditing = (job: Job) => {
+    setEditingJobId(job.id);
+    // 기본값 설정
+    editForm.setFieldsValue({
+      editName: job.name,
+      editAssignedUser: job.assignedUser,
+      editDescription: job.description,
+      editCompleted: job.completed
+    });
+    
+    // 날짜 값 설정 (dayjs 사용)
+    const startDate = job.startTime ? dayjs(job.startTime) : null;
+    const endDate = job.endTime ? dayjs(job.endTime) : null;
+    
+    // 날짜가 유효한 경우에만 설정
+    if (startDate && endDate) {
+      setTimeout(() => {
+        editForm.setFieldsValue({
+          editTimeRange: [startDate, endDate]
+        });
+      }, 0);
+    }
+  };
+  
+  // 작업 수정 취소
+  const cancelEditing = () => {
+    setEditingJobId(null);
+    editForm.resetFields();
+  };
+  
+  // 작업 수정 제출 핸들러
+  const handleJobUpdate = async (values: any) => {
+    try {
+      // 시간 데이터 변환
+      const jobData = {
+        ...values,
+        name: values.editName,
+        assignedUser: values.editAssignedUser,
+        startTime: values.editTimeRange ? values.editTimeRange[0]?.toISOString() : new Date().toISOString(),
+        endTime: values.editTimeRange ? values.editTimeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
+        description: values.editDescription,
+        completed: values.editCompleted
+      };
+      
+      // API 호출 (현재는 목업 데이터 사용 중이므로 임시 구현)
+      if (task && editingJobId) {
+        // 태스크에서 수정할 작업 찾기
+        const updatedJobs = task.jobs.map(job => {
+          if (job.id === editingJobId) {
+            return {
+              ...job,
+              name: jobData.name,
+              assignedUser: jobData.assignedUser,
+              description: jobData.description,
+              startTime: jobData.startTime,
+              endTime: jobData.endTime,
+              completed: jobData.completed,
+              completionTime: jobData.completed && !job.completed ? new Date().toISOString() : job.completionTime
+            };
+          }
+          return job;
+        });
+        
+        setTask({
+          ...task,
+          jobs: updatedJobs
+        });
+        
+        message.success('작업이 수정되었습니다.');
+        setEditingJobId(null);
+        editForm.resetFields();
+      }
+    } catch (error) {
+      console.error('Error updating job:', error);
+      message.error('작업 수정 중 오류가 발생했습니다.');
+    }
   };
   
   // 확장된 행 렌더링
   const expandedRowRender = (record: Job) => {
+    if (editingJobId === record.id) {
+      // 수정 폼 렌더링
+      return (
+        <div style={{ padding: '16px 40px', backgroundColor: '#f5f5f5' }}>
+          <Form
+            form={editForm}
+            layout="vertical"
+            onFinish={handleJobUpdate}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="editName"
+                  label="작업명"
+                  rules={[{ required: true, message: '작업명을 입력해주세요' }]}
+                >
+                  <Input placeholder="작업명을 입력하세요" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="editAssignedUser"
+                  label="담당자"
+                  rules={[{ required: true, message: '담당자를 입력해주세요' }]}
+                >
+                  <Input placeholder="담당자를 입력하세요" />
+                </Form.Item>
+              </Col>
+            </Row>
+            
+            <Form.Item
+              name="editTimeRange"
+              label="시작/종료 시간"
+              rules={[{ required: true, message: '시간을 선택해주세요' }]}
+            >
+              <RangePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
+            </Form.Item>
+            
+            <Form.Item
+              name="editDescription"
+              label="작업 설명"
+            >
+              <TextArea rows={4} placeholder="작업에 대한 설명을 입력하세요" />
+            </Form.Item>
+            
+            <Form.Item
+              name="editCompleted"
+              valuePropName="checked"
+              label="완료 여부"
+            >
+              <Switch checkedChildren="완료" unCheckedChildren="진행중" />
+            </Form.Item>
+            
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+                  저장
+                </Button>
+                <Button onClick={cancelEditing} icon={<CloseOutlined />}>
+                  취소
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </div>
+      );
+    }
+    
+    // 일반 상세 정보 렌더링
     return (
       <div style={{ padding: '16px 40px', backgroundColor: '#f5f5f5' }}>
-        <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
-          <Descriptions.Item label="작업명">{record.name}</Descriptions.Item>
-          <Descriptions.Item label="담당자">
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div></div>
+          <Button 
+            type="primary" 
+            icon={<EditOutlined />} 
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing(record);
+            }}
+          >
+            수정
+          </Button>
+        </div>
+        
+        <Descriptions bordered column={3}>
+          <Descriptions.Item label="작업명" span={1}>{record.name}</Descriptions.Item>
+          <Descriptions.Item label="담당자" span={1}>
             <Tag icon={<UserOutlined />}>{record.assignedUser}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="상태">
+          <Descriptions.Item label="상태" span={1}>
             {record.completed ? (
               <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>
             ) : (
               <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="시작 시간">
+          <Descriptions.Item label="시작 시간" span={1}>
             {record.startTime ? new Date(record.startTime).toLocaleString() : '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="종료 예정 시간">
+          <Descriptions.Item label="종료 예정 시간" span={1}>
             {record.endTime ? new Date(record.endTime).toLocaleString() : '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="완료 시간">
+          <Descriptions.Item label="완료 시간" span={1}>
             {record.completionTime ? new Date(record.completionTime).toLocaleString() : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="작업 설명" span={3}>
@@ -312,30 +483,24 @@ const TaskDetail = () => {
             >
               수정하기
             </Button>
-            <Button
-              type="primary"
-              onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}/jobs`)}
-            >
-              작업 관리
-            </Button>
           </Space>
         </div>
       </Card>
       
       {/* 태스크 상세 정보 */}
       <Card title="업무 상세 정보" style={{ marginBottom: 24 }}>
-        <Descriptions bordered column={{ xxl: 4, xl: 3, lg: 3, md: 3, sm: 2, xs: 1 }}>
-          <Descriptions.Item label="업무명">{task.name}</Descriptions.Item>
-          <Descriptions.Item label="생성자">{task.creator}</Descriptions.Item>
-          <Descriptions.Item label="시작일">{new Date(task.startDate).toLocaleDateString()}</Descriptions.Item>
-          <Descriptions.Item label="예정 종료일">{new Date(task.plannedEndDate).toLocaleDateString()}</Descriptions.Item>
-          <Descriptions.Item label="완료일">
+        <Descriptions bordered column={3}>
+          <Descriptions.Item label="업무명" span={1}>{task.name}</Descriptions.Item>
+          <Descriptions.Item label="생성자" span={1}>{task.creator}</Descriptions.Item>
+          <Descriptions.Item label="시작일" span={1}>{new Date(task.startDate).toLocaleDateString()}</Descriptions.Item>
+          <Descriptions.Item label="예정 종료일" span={1}>{new Date(task.plannedEndDate).toLocaleDateString()}</Descriptions.Item>
+          <Descriptions.Item label="완료일" span={1}>
             {task.completionDate ? new Date(task.completionDate).toLocaleDateString() : '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="상태">
+          <Descriptions.Item label="상태" span={1}>
             <Tag color={taskStatus.color} icon={taskStatus.icon}>{taskStatus.text}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="담당자" span={2}>
+          <Descriptions.Item label="담당자" span={3}>
             <Space wrap>
               {task.assignees && task.assignees.map((assignee) => (
                 <Tag key={assignee} icon={<UserOutlined />}>{assignee}</Tag>
@@ -352,21 +517,25 @@ const TaskDetail = () => {
       <Card 
         title="작업 목록" 
         extra={
-          <Space>
-            <Button
+          <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setShowJobForm(!showJobForm)}
+              onClick={() => {
+                setShowJobForm(!showJobForm);
+                // 폼이 표시되면 약간의 시간차를 두고 폼으로 스크롤
+                if (!showJobForm) {
+                  setTimeout(() => {
+                    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    const nameInput = document.querySelector('#job-name-input');
+                    if (nameInput) {
+                      (nameInput as HTMLElement).focus();
+                    }
+                  }, 100);
+                }
+              }}
             >
               작업 추가
             </Button>
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}/jobs`)}
-            >
-              작업 관리
-            </Button>
-          </Space>
         }
       >
         {task.jobs && task.jobs.length > 0 ? (
@@ -390,7 +559,7 @@ const TaskDetail = () => {
         
         {/* 작업 추가 폼 */}
         {showJobForm && (
-          <div style={{ marginTop: 24, border: '1px solid #f0f0f0', padding: 24, borderRadius: 2 }}>
+          <div ref={formRef} style={{ marginTop: 24, border: '1px solid #f0f0f0', padding: 24, borderRadius: 2 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <Title level={5}>새 작업 추가</Title>
               <Button 
@@ -418,7 +587,7 @@ const TaskDetail = () => {
                     label="작업명"
                     rules={[{ required: true, message: '작업명을 입력해주세요' }]}
                   >
-                    <Input placeholder="작업명을 입력하세요" />
+                    <Input id="job-name-input" placeholder="작업명을 입력하세요" />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
