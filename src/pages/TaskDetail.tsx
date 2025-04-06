@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { taskApi } from '../services/api';
+import { tasks } from '../mocks/data';
 import AppLayout from '../components/layout/AppLayout';
 
 const { Title, Text, Paragraph } = Typography;
