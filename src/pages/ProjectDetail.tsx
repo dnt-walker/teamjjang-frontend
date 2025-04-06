@@ -1,0 +1,377 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Typography, 
+  Card, 
+  Space, 
+  Tag, 
+  Table, 
+  Button, 
+  Row, 
+  Col, 
+  Statistic, 
+  Descriptions, 
+  Divider,
+  Progress,
+  Empty,
+  Spin,
+  message
+} from 'antd';
+import { 
+  ArrowLeftOutlined,
+  ProjectOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  EditOutlined
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { projectApi, taskApi } from '../services/api';
+import AppLayout from '../components/layout/AppLayout';
+
+const { Title, Text } = Typography;
+
+interface Project {
+  id: number;
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  manager: string;
+  active: boolean;
+}
+
+interface Task {
+  id: number;
+  name: string;
+  startDate: string;
+  plannedEndDate: string;
+  completionDate: string | null;
+  creator: string;
+  assignees: string[];
+  description: string;
+  project?: Project;
+}
+
+const ProjectDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  
+  const [project, setProject] = useState<Project | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [taskLoading, setTaskLoading] = useState<boolean>(true);
+  
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const projectId = parseInt(id);
+        const response = await projectApi.getProjectById(projectId);
+        setProject(response.data);
+        
+        // 프로젝트에 속한 태스크 목록 가져오기
+        setTaskLoading(true);
+        const tasksResponse = await taskApi.getTasksByProject(projectId);
+        setTasks(tasksResponse.data);
+      } catch (error) {
+        console.error('Error fetching project details:', error);
+        message.error('프로젝트 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+        setTaskLoading(false);
+      }
+    };
+    
+    fetchProjectDetails();
+  }, [id]);
+  
+  // 프로젝트 진행 상태 계산
+  const calculateProgress = () => {
+    if (!tasks.length) return 0;
+    
+    const completedTasks = tasks.filter(task => task.completionDate).length;
+    return Math.round((completedTasks / tasks.length) * 100);
+  };
+  
+  // 프로젝트 기간 계산 (전체 일수 중 경과 일수)
+  const calculateTimeProgress = () => {
+    if (!project) return 0;
+    
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const today = new Date();
+    
+    const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const elapsedDays = Math.min(
+      totalDays,
+      Math.max(0, Math.round((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+    );
+    
+    return Math.round((elapsedDays / totalDays) * 100);
+  };
+  
+  // 프로젝트 상태 텍스트 및 색상
+  const getProjectStatus = () => {
+    if (!project) return { text: '로딩 중', color: 'default' };
+    
+    if (!project.active) return { text: '종료됨', color: 'default' };
+    
+    const now = new Date();
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    
+    if (now < startDate) return { text: '시작 전', color: 'blue' };
+    if (now > endDate) return { text: '기한 초과', color: 'red' };
+    return { text: '진행 중', color: 'green' };
+  };
+  
+  // 태스크 상태별 수량 계산
+  const countTasksByStatus = () => {
+    const completed = tasks.filter(task => task.completionDate).length;
+    const overdue = tasks.filter(task => !task.completionDate && new Date(task.plannedEndDate) < new Date()).length;
+    const inProgress = tasks.length - completed - overdue;
+    
+    return { completed, inProgress, overdue };
+  };
+  
+  const statusCounts = countTasksByStatus();
+  const progress = calculateProgress();
+  const timeProgress = calculateTimeProgress();
+  const projectStatus = getProjectStatus();
+  
+  // 태스크 테이블 컬럼 정의
+  const columns: ColumnsType<Task> = [
+    {
+      title: '업무명',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text, record) => (
+        <a onClick={() => navigate(`/projects/${id}/tasks/${record.id}/edit`)}>{text}</a>
+      ),
+    },
+    {
+      title: '시작일',
+      dataIndex: 'startDate',
+      key: 'startDate',
+      render: (date) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: '예정 종료일',
+      dataIndex: 'plannedEndDate',
+      key: 'plannedEndDate',
+      render: (date) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: '상태',
+      key: 'status',
+      render: (_, record) => {
+        if (record.completionDate) {
+          return <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>;
+        } else if (new Date(record.plannedEndDate) < new Date()) {
+          return <Tag icon={<ExclamationCircleOutlined />} color="error">지연</Tag>;
+        } else {
+          return <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>;
+        }
+      },
+    },
+    {
+      title: '담당자',
+      key: 'assignees',
+      dataIndex: 'assignees',
+      render: (assignees: string[]) => (
+        <>
+          {assignees.map((assignee) => (
+            <Tag key={assignee} icon={<UserOutlined />}>
+              {assignee}
+            </Tag>
+          ))}
+        </>
+      ),
+    },
+  ];
+  
+  if (loading) {
+    return (
+      <AppLayout>
+        <div style={{ textAlign: 'center', padding: '100px 0' }}>
+          <Spin size="large" />
+          <p>프로젝트 정보를 불러오는 중...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+  
+  if (!project) {
+    return (
+      <AppLayout>
+        <Empty
+          description="프로젝트를 찾을 수 없습니다."
+          style={{ margin: '100px 0' }}
+        />
+        <div style={{ textAlign: 'center' }}>
+          <Button 
+            type="primary" 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/dashboard')}
+          >
+            대시보드로 돌아가기
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
+  
+  return (
+    <AppLayout>
+      <div style={{ marginBottom: 16 }}>
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate('/dashboard')}
+        >
+          대시보드로 돌아가기
+        </Button>
+      </div>
+      
+      {/* 프로젝트 헤더 */}
+      <Card style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div>
+            <Title level={2} style={{ marginBottom: 8 }}>
+              <ProjectOutlined /> {project.name}
+            </Title>
+            <Tag color={projectStatus.color}>{projectStatus.text}</Tag>
+            <Tag icon={<UserOutlined />}>{project.manager}</Tag>
+            <Tag icon={<CalendarOutlined />}>
+              {new Date(project.startDate).toLocaleDateString()} ~ {new Date(project.endDate).toLocaleDateString()}
+            </Tag>
+          </div>
+          <Button icon={<EditOutlined />} onClick={() => navigate(`/projects/${project.id}/edit`)}>
+            프로젝트 수정
+          </Button>
+        </div>
+        
+        <Text>{project.description}</Text>
+      </Card>
+      
+      {/* 프로젝트 통계 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic 
+              title="전체 태스크" 
+              value={tasks.length} 
+              suffix={`개`}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic 
+              title="완료된 태스크" 
+              value={statusCounts.completed} 
+              suffix={`개 (${progress}%)`}
+              valueStyle={{ color: '#3f8600' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic 
+              title="진행 중인 태스크" 
+              value={statusCounts.inProgress} 
+              suffix="개"
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic 
+              title="지연된 태스크" 
+              value={statusCounts.overdue} 
+              suffix="개"
+              valueStyle={{ color: '#cf1322' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+      
+      {/* 프로젝트 진행 상태 */}
+      <Card style={{ marginBottom: 24 }}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} md={12}>
+            <div>
+              <Title level={5}>태스크 진행률</Title>
+              <Progress 
+                percent={progress} 
+                strokeColor={{
+                  '0%': '#108ee9',
+                  '100%': '#87d068',
+                }}
+                status={progress === 100 ? 'success' : 'active'}
+              />
+              <div style={{ textAlign: 'center' }}>
+                <Text type="secondary">
+                  {statusCounts.completed}개 완료 / 총 {tasks.length}개 태스크
+                </Text>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} md={12}>
+            <div>
+              <Title level={5}>프로젝트 기간</Title>
+              <Progress 
+                percent={timeProgress} 
+                strokeColor={{
+                  '0%': '#faad14',
+                  '100%': '#fa541c',
+                }}
+                status={timeProgress === 100 ? 'success' : 'active'}
+              />
+              <div style={{ textAlign: 'center' }}>
+                <Text type="secondary">
+                  {new Date(project.startDate).toLocaleDateString()} ~ {new Date(project.endDate).toLocaleDateString()}
+                </Text>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+      
+      {/* 태스크 목록 */}
+      <Card title="프로젝트 태스크 목록">
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button 
+            type="primary" 
+            onClick={() => navigate(`/projects/${project.id}/tasks/new`)}
+          >
+            새 태스크 추가
+          </Button>
+        </div>
+        
+        {taskLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin />
+            <p>태스크 목록을 불러오는 중...</p>
+          </div>
+        ) : tasks.length > 0 ? (
+          <Table 
+            columns={columns} 
+            dataSource={tasks.map(task => ({ ...task, key: task.id }))} 
+            pagination={false} // 페이징 없음
+            size="middle"
+          />
+        ) : (
+          <Empty description="등록된 태스크가 없습니다" />
+        )}
+      </Card>
+    </AppLayout>
+  );
+};
+
+export default ProjectDetail;
