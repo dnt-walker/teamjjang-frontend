@@ -11,6 +11,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   DownOutlined,
+  ProjectOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../store/authStore';
 
@@ -55,8 +56,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const getSelectedKey = () => {
     const path = location.pathname;
     if (path === '/') return ['dashboard'];
+    if (path.startsWith('/projects')) return ['projects'];
     if (path.startsWith('/tasks')) return ['tasks'];
-    if (path.startsWith('/calendar')) return ['calendar'];
     return ['dashboard'];
   };
   
@@ -101,16 +102,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               onClick: () => navigate('/'),
             },
             {
+              key: 'projects',
+              icon: <ProjectOutlined />,
+              label: '프로젝트 관리',
+              onClick: () => navigate('/projects'),
+            },
+            {
               key: 'tasks',
               icon: <UnorderedListOutlined />,
               label: '업무 관리',
               onClick: () => navigate('/tasks'),
-            },
-            {
-              key: 'calendar',
-              icon: <CalendarOutlined />,
-              label: '일정 관리',
-              onClick: () => navigate('/calendar'),
             },
           ]}
         />

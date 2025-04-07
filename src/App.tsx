@@ -6,6 +6,8 @@ import koKR from 'antd/locale/ko_KR';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TaskList from './pages/TaskList';
+import ProjectList from './pages/ProjectList';
+import ProjectCreate from './pages/ProjectCreate';
 import ProjectDetail from './pages/ProjectDetail';
 import ProjectEdit from './pages/ProjectEdit';
 import TaskCreate from './pages/TaskCreate';
@@ -73,9 +75,11 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tasks" element={<TaskList />} />
+            <Route path="/projects" element={<ProjectList />} />
+            <Route path="/projects/new" element={<ProjectCreate />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/projects/:id/edit" element={<ProjectEdit />} />
+            <Route path="/tasks" element={<TaskList />} />
             <Route path="/projects/:projectId/tasks/new" element={<TaskCreate />} />
             <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetail />} />
             <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEdit />} />
