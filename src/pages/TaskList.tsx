@@ -8,9 +8,9 @@ import {
   Tag, 
   Input, 
   Dropdown, 
-  message,
   Modal,
-  Form
+  Form,
+  App
 } from 'antd';
 import { 
   PlusOutlined,
@@ -27,7 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { taskApi } from '../services/api';
+import { taskApi, projectApi } from '../services/api';
 import AppLayout from '../components/layout/AppLayout';
 
 const { Title } = Typography;
@@ -56,6 +56,7 @@ interface Task {
 }
 
 const TaskList = () => {
+  const { message } = App.useApp();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
@@ -113,6 +114,25 @@ const TaskList = () => {
 
   const handleSearch = (value: string) => {
     setSearch(value);
+    // 검색어가 있을 때만 필터링
+    const filtered = tasks.filter(task => {
+      if (!value) return true;
+      
+      const searchLower = value.toLowerCase();
+      return (
+        task.name.toLowerCase().includes(searchLower) ||
+        task.description.toLowerCase().includes(searchLower) ||
+        task.creator.toLowerCase().includes(searchLower) ||
+        task.assignees.some(assignee => assignee.toLowerCase().includes(searchLower))
+      );
+    });
+    
+    if (value) {
+      setTasks(filtered);
+    } else {
+      // 검색어가 없으면 다시 데이터 조회
+      fetchTasks();
+    }
   };
 
   const openModal = (type: 'view' | 'edit' | 'delete', task: Task) => {
@@ -151,13 +171,29 @@ const TaskList = () => {
         key: '1',
         icon: <EyeOutlined />,
         label: '상세 보기',
-        onClick: () => openModal('view', record),
+        onClick: () => {
+          // Task는 프로젝트에 종속되어야 하므로 프로젝트가 없는 경우 이동하지 않음
+          if (!record.project?.id) {
+            message.info('프로젝트에 속한 업무만 상세 정보를 조회할 수 있습니다.');
+            return;
+          }
+          
+          navigate(`/projects/${record.project.id}/tasks/${record.id}`);
+        },
       },
       {
         key: '2',
         icon: <EditOutlined />,
         label: '수정',
-        onClick: () => openModal('edit', record),
+        onClick: () => {
+          // Task는 프로젝트에 종속되어야 하므로 프로젝트가 없는 경우 수정하지 않음
+          if (!record.project?.id) {
+            message.info('프로젝트에 속한 업무만 수정할 수 있습니다.');
+            return;
+          }
+          
+          navigate(`/projects/${record.project.id}/tasks/${record.id}/edit`);
+        },
       },
       {
         key: '3',
@@ -174,20 +210,17 @@ const TaskList = () => {
       title: '업무명',
       dataIndex: 'name',
       key: 'name',
-      render: (text, record) => (
-        <a onClick={() => openModal('view', record)}>{text}</a>
-      ),
-      filteredValue: [search],
-      onFilter: (value, record) => {
-        return (
-          record.name.toLowerCase().includes(value.toString().toLowerCase()) ||
-          record.description.toLowerCase().includes(value.toString().toLowerCase()) ||
-          record.creator.toLowerCase().includes(value.toString().toLowerCase()) ||
-          record.assignees.some(assignee => 
-            assignee.toLowerCase().includes(value.toString().toLowerCase())
-          )
-        );
+      render: (text, record) => {
+        // Task는 프로젝트에 종속되어야 하므로 프로젝트가 없는 경우 이동하지 않음
+        if (!record.project?.id) {
+          return <span>{text}</span>;
+        }
+        
+        // 프로젝트가 있는 경우 해당 프로젝트의 Task 페이지로 이동
+        const taskPath = `/projects/${record.project.id}/tasks/${record.id}`;
+        return <a onClick={() => navigate(taskPath)}>{text}</a>;
       },
+      // 검색 필터링 로직은 상태 변경으로 처리
     },
     {
       title: '프로젝트',
@@ -199,16 +232,7 @@ const TaskList = () => {
           <Tag color="default">프로젝트 없음</Tag>
         )
       ),
-      filters: [
-        { text: '프로젝트 있음', value: 'hasProject' },
-        { text: '프로젝트 없음', value: 'noProject' },
-      ],
-      onFilter: (value, record) => {
-        if (value === 'hasProject') {
-          return record.project !== undefined;
-        }
-        return record.project === undefined;
-      },
+      // 필터 속성 제거
     },
     {
       title: '시작일',
@@ -248,20 +272,7 @@ const TaskList = () => {
           );
         }
       },
-      filters: [
-        { text: '완료', value: 'completed' },
-        { text: '진행중', value: 'in-progress' },
-        { text: '지연', value: 'overdue' },
-      ],
-      onFilter: (value, record) => {
-        if (value === 'completed') {
-          return record.completionDate !== null;
-        } else if (value === 'in-progress') {
-          return !record.completionDate && new Date(record.plannedEndDate) >= new Date();
-        } else {
-          return !record.completionDate && new Date(record.plannedEndDate) < new Date();
-        }
-      },
+      // 필터 속성 제거 - 상태 관리는 상태 변경으로 통합 처리
     },
     {
       title: '담당자',
@@ -353,15 +364,6 @@ const TaskList = () => {
     <AppLayout>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={2}>업무 목록</Title>
-        <Space>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/tasks/new')}
-          >
-            새 업무 생성
-          </Button>
-        </Space>
       </div>
       
       <Card style={{ marginBottom: 16 }}>

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
-import { ConfigProvider, Card, Typography, Button } from 'antd';
+import { ConfigProvider, Card, Typography, Button, App as AntApp } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import koKR from 'antd/locale/ko_KR';
 import Login from './pages/Login';
@@ -62,8 +62,9 @@ function App() {
         },
       }}
     >
-      <BrowserRouter>
-        <Routes>
+      <AntApp>
+        <BrowserRouter>
+          <Routes>
           {/* 공개 경로 */}
           <Route path="/login" element={<Login />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
@@ -88,8 +89,9 @@ function App() {
           
           {/* 기본 리다이렉트 */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   );
 }

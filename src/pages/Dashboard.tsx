@@ -113,7 +113,15 @@ const Dashboard = () => {
       title: '업무명',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <a>{text}</a>,
+      render: (text, record) => {
+        // Task는 프로젝트에 종속되어야 함
+        if (!record.project?.id) {
+          return <span>{text}</span>;
+        }
+        
+        // 프로젝트가 있는 경우 해당 프로젝트의 Task 페이지로 이동
+        return <a onClick={() => navigate(`/projects/${record.project.id}/tasks/${record.id}`)}>{text}</a>;
+      },
     },
     {
       title: '프로젝트',

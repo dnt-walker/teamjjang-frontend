@@ -529,9 +529,16 @@ const TaskDetail = () => {
           <Button 
             type="primary" 
             icon={<ArrowLeftOutlined />} 
-            onClick={() => navigate(`/projects/${projectId}`)}
+            onClick={() => {
+              // 프로젝트 ID가 있으면 해당 프로젝트로, 없으면 업무 목록으로 돌아가기
+              if (projectId) {
+                navigate(`/projects/${projectId}`);
+              } else {
+                navigate('/tasks');
+              }
+            }}
           >
-            프로젝트로 돌아가기
+            {projectId ? '프로젝트로 돌아가기' : '업무 목록으로 돌아가기'}
           </Button>
         </div>
       </AppLayout>
@@ -543,9 +550,16 @@ const TaskDetail = () => {
       <div style={{ marginBottom: 16 }}>
         <Button 
           icon={<ArrowLeftOutlined />} 
-          onClick={() => navigate(`/projects/${projectId}`)}
+          onClick={() => {
+            // 프로젝트 ID가 있으면 해당 프로젝트로, 없으면 업무 목록으로 돌아가기
+            if (projectId) {
+              navigate(`/projects/${projectId}`);
+            } else {
+              navigate('/tasks');
+            }
+          }}
         >
-          프로젝트로 돌아가기
+          {projectId ? '프로젝트로 돌아가기' : '업무 목록으로 돌아가기'}
         </Button>
       </div>
       
@@ -565,7 +579,13 @@ const TaskDetail = () => {
           <Space>
             <Button 
               icon={<EditOutlined />} 
-              onClick={() => navigate(`/projects/${projectId}/tasks/${task.id}/edit`)}
+              onClick={() => {
+                if (projectId) {
+                  navigate(`/projects/${projectId}/tasks/${task.id}/edit`);
+                } else {
+                  navigate(`/tasks/${task.id}/edit`);
+                }
+              }}
             >
               수정하기
             </Button>
