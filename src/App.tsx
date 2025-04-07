@@ -13,6 +13,8 @@ import ProjectEdit from './pages/ProjectEdit';
 import TaskCreate from './pages/TaskCreate';
 import TaskEdit from './pages/TaskEdit';
 import TaskDetail from './pages/TaskDetail';
+import UserList from './pages/system/UserList';
+import UserForm from './pages/system/UserForm';
 import PrivateRoute from './components/PrivateRoute';
 import { useAuthStore } from './store/authStore';
 
@@ -84,6 +86,11 @@ function App() {
             <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetail />} />
             <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEdit />} />
             <Route path="/projects/:projectId/tasks/:taskId/jobs" element={<TaskDetail />} />
+            
+            {/* 시스템 관리 경로 */}
+            <Route path="/system/users" element={<UserList />} />
+            <Route path="/system/users/add" element={<UserForm />} />
+            <Route path="/system/users/edit/:id" element={<UserForm />} />
           </Route>
           
           {/* 관리자 전용 경로 */}

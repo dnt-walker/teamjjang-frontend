@@ -1,0 +1,126 @@
+import React, { useEffect, useState } from 'react';
+import { Table, Button, Space, Popconfirm, message } from 'antd';
+import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { getAllUsers, deleteUser, User } from '../services/userService';
+
+const UserList: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error('사용자 목록을 불러오는데 실패했습니다:', error);
+      message.error('사용자 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteUser(id);
+      message.success('사용자가 삭제되었습니다.');
+      fetchUsers();
+    } catch (error) {
+      console.error('사용자 삭제에 실패했습니다:', error);
+      message.error('사용자 삭제에 실패했습니다.');
+    }
+  };
+
+  const columns = [
+    {
+      title: '아이디',
+      dataIndex: 'username',
+      key: 'username',
+    },
+    {
+      title: '이름',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: '이메일',
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: '부서',
+      dataIndex: 'department',
+      key: 'department',
+    },
+    {
+      title: '직위',
+      dataIndex: 'position',
+      key: 'position',
+    },
+    {
+      title: '상태',
+      dataIndex: 'active',
+      key: 'active',
+      render: (active: boolean) => (
+        <span style={{ color: active ? 'green' : 'red' }}>
+          {active ? '활성' : '비활성'}
+        </span>
+      ),
+    },
+    {
+      title: '관리',
+      key: 'action',
+      render: (_: any, record: User) => (
+        <Space size="middle">
+          <Button 
+            icon={<EditOutlined />} 
+            onClick={() => navigate(`/system/users/edit/${record.id}`)}
+            type="text"
+          />
+          <Popconfirm
+            title="사용자 삭제"
+            description="이 사용자를 정말 삭제하시겠습니까?"
+            onConfirm={() => record.id && handleDelete(record.id)}
+            okText="예"
+            cancelText="아니오"
+          >
+            <Button 
+              icon={<DeleteOutlined />} 
+              danger 
+              type="text"
+            />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <h1>사용자 관리</h1>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={() => navigate('/system/users/add')}
+        >
+          사용자 추가
+        </Button>
+      </div>
+      <Table 
+        columns={columns} 
+        dataSource={users.map(user => ({ ...user, key: user.id }))} 
+        loading={loading} 
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
+  );
+};
+
+export default UserList;

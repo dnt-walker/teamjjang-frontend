@@ -12,6 +12,8 @@ import {
   LogoutOutlined,
   DownOutlined,
   ProjectOutlined,
+  SettingOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../store/authStore';
 
@@ -58,6 +60,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     if (path === '/') return ['dashboard'];
     if (path.startsWith('/projects')) return ['projects'];
     if (path.startsWith('/tasks')) return ['tasks'];
+    if (path.startsWith('/system')) {
+      if (path.startsWith('/system/users')) return ['system', 'users'];
+      return ['system'];
+    }
     return ['dashboard'];
   };
   
@@ -113,6 +119,19 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               icon: <UnorderedListOutlined />,
               label: '업무 관리',
               onClick: () => navigate('/tasks'),
+            },
+            {
+              key: 'system',
+              icon: <SettingOutlined />,
+              label: '시스템 관리',
+              children: [
+                {
+                  key: 'users',
+                  icon: <TeamOutlined />,
+                  label: '사용자 관리',
+                  onClick: () => navigate('/system/users'),
+                },
+              ],
             },
           ]}
         />
