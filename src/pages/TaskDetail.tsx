@@ -40,7 +40,7 @@ import {
   MinusCircleOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { taskApi, jobApi } from '../services/api';
+import { taskApi, jobApi, userApi } from '../services/api';
 import { tasks } from '../mocks/data';
 import AppLayout from '../components/layout/AppLayout';
 
@@ -104,7 +104,8 @@ const JobStatusTag: React.FC<JobStatusTagProps> = ({ status }) => {
 interface Job {
   id: number;
   name: string;
-  assignedUser: string;
+  assignedUser?: string; // 하위 호환용
+  assignedUsers: string[];
   description: string;
   startTime: string;
   endTime: string;
@@ -140,8 +141,10 @@ const TaskDetail = () => {
   
   const [task, setTask] = useState<Task | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [users, setUsers] = useState<{ id: number; username: string; fullName: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [jobsLoading, setJobsLoading] = useState<boolean>(true);
+  const [usersLoading, setUsersLoading] = useState<boolean>(false);
   const [expandedRowKeys, setExpandedRowKeys] = useState<number[]>([]);
   const [showJobForm, setShowJobForm] = useState<boolean>(false);
   const [jobFormLoading, setJobFormLoading] = useState<boolean>(false);
@@ -204,6 +207,24 @@ const TaskDetail = () => {
     }
   }, [taskId, projectId, task]);
   
+  // 사용자 목록 불러오기
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const response = await userApi.getAllUsers();
+        setUsers(response.data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        message.error('사용자 목록을 불러오는데 실패했습니다.');
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    
+    fetchUsers();
+  }, []);
+  
   // 태스크 상태 정보
   const getTaskStatus = () => {
     if (!task) return { text: '로딩 중', color: 'default' };
@@ -232,7 +253,9 @@ const TaskDetail = () => {
         endTime: values.timeRange ? values.timeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
         completed: isCompleted,
         completionTime: isCompleted ? new Date().toISOString() : null,
-        status: values.status || 'created'
+        status: values.status || 'created',
+        // assignedUser 필드 하위 호환을 위해 추가 (assignedUsers의 첫 번째 값)
+        assignedUser: values.assignedUsers && values.assignedUsers.length > 0 ? values.assignedUsers[0] : ''
       };
       delete jobData.timeRange;
       
@@ -273,7 +296,7 @@ const TaskDetail = () => {
     // 기본값 설정
     editForm.setFieldsValue({
       editName: job.name,
-      editAssignedUser: job.assignedUser,
+      editAssignedUsers: job.assignedUsers || [],
       editDescription: job.description,
       editStatus: job.status || 'created'
     });
@@ -307,7 +330,9 @@ const TaskDetail = () => {
       // 시간 데이터 변환
       const jobData = {
         name: values.editName,
-        assignedUser: values.editAssignedUser,
+        assignedUsers: values.editAssignedUsers || [],
+        // 하위 호환용 assignedUser
+        assignedUser: values.editAssignedUsers && values.editAssignedUsers.length > 0 ? values.editAssignedUsers[0] : '',
         startTime: values.editTimeRange ? values.editTimeRange[0]?.toISOString() : new Date().toISOString(),
         endTime: values.editTimeRange ? values.editTimeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
         description: values.editDescription,
@@ -363,11 +388,28 @@ const TaskDetail = () => {
               </Col>
               <Col span={12}>
                 <Form.Item
-                  name="editAssignedUser"
+                  name="editAssignedUsers"
                   label="담당자"
                   rules={[{ required: true, message: '담당자를 입력해주세요' }]}
                 >
-                  <Input placeholder="담당자를 입력하세요" />
+                  <Select
+                    mode="multiple"
+                    placeholder="담당자를 선택하세요"
+                    style={{ width: '100%' }}
+                    loading={usersLoading}
+                    allowClear
+                    optionFilterProp="label"
+                  >
+                    {users.map(user => (
+                      <Option key={user.username} value={user.username} label={user.fullName || user.username}>
+                        <Space>
+                          <UserOutlined />
+                          <span>{user.fullName || user.username}</span>
+                          {user.fullName && <span style={{ color: '#999' }}>({user.username})</span>}
+                        </Space>
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
             </Row>
@@ -434,7 +476,15 @@ const TaskDetail = () => {
         <Descriptions bordered column={3}>
           <Descriptions.Item label="작업명" span={1}>{record.name}</Descriptions.Item>
           <Descriptions.Item label="담당자" span={1}>
-            <Tag icon={<UserOutlined />}>{record.assignedUser}</Tag>
+            <Space wrap>
+              {record.assignedUsers && record.assignedUsers.length > 0 ? (
+                record.assignedUsers.map(user => (
+                  <Tag key={user} icon={<UserOutlined />}>{user}</Tag>
+                ))
+              ) : (
+                <Tag icon={<UserOutlined />}>{record.assignedUser || '할당되지 않음'}</Tag>
+              )}
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="상태" span={1}>
             {record.status ? (
@@ -476,9 +526,18 @@ const TaskDetail = () => {
     },
     {
       title: '담당자',
-      dataIndex: 'assignedUser',
-      key: 'assignedUser',
-      render: (user) => <Tag icon={<UserOutlined />}>{user}</Tag>,
+      key: 'assignedUsers',
+      render: (_, record) => (
+        <Space wrap>
+          {record.assignedUsers && record.assignedUsers.length > 0 ? (
+            record.assignedUsers.map(user => (
+              <Tag key={user} icon={<UserOutlined />}>{user}</Tag>
+            ))
+          ) : (
+            <Tag icon={<UserOutlined />}>{record.assignedUser || '할당되지 않음'}</Tag>
+          )}
+        </Space>
+      ),
     },
     {
       title: '시작 시간',
@@ -722,11 +781,28 @@ const TaskDetail = () => {
                 </Col>
                 <Col span={12}>
                   <Form.Item
-                    name="assignedUser"
+                    name="assignedUsers"
                     label="담당자"
                     rules={[{ required: true, message: '담당자를 입력해주세요' }]}
                   >
-                    <Input placeholder="담당자를 입력하세요" />
+                    <Select
+                      mode="multiple"
+                      placeholder="담당자를 선택하세요"
+                      style={{ width: '100%' }}
+                      loading={usersLoading}
+                      allowClear
+                      optionFilterProp="label"
+                    >
+                      {users.map(user => (
+                        <Option key={user.username} value={user.username} label={user.fullName || user.username}>
+                          <Space>
+                            <UserOutlined />
+                            <span>{user.fullName || user.username}</span>
+                            {user.fullName && <span style={{ color: '#999' }}>({user.username})</span>}
+                          </Space>
+                        </Option>
+                      ))}
+                    </Select>
                   </Form.Item>
                 </Col>
               </Row>

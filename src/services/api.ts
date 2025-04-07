@@ -357,6 +357,20 @@ export const userApi = {
   },
   searchUsers: (params: { username?: string, email?: string, fullName?: string }) => {
     return api.get('/users/search', { params });
+  },
+  getAllUsers: () => {
+    // 목업 데이터 사용
+    if (useMockData) {
+      return Promise.resolve({
+        data: [
+          { id: 1, username: 'admin', email: 'admin@example.com', fullName: '관리자' },
+          { id: 2, username: 'user1', email: 'user1@example.com', fullName: '사용자 1' },
+          { id: 3, username: 'user2', email: 'user2@example.com', fullName: '사용자 2' },
+          { id: 4, username: 'user3', email: 'user3@example.com', fullName: '사용자 3' }
+        ]
+      });
+    }
+    return api.get('/users');
   }
 };
 
