@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { projects, tasks } from '../mocks/data';
+//import { projects, tasks } from '../mocks/data';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -98,7 +98,7 @@ export const authApi = {
 };
 
 // 백엔드 API 호출을 사용
-const useMockData = true;
+const useMockData = false;
 
 // 프로젝트 관련 API
 export const projectApi = {
@@ -226,7 +226,8 @@ export const taskApi = {
       const task = tasks.find(t => t.id === id);
       return Promise.resolve({ data: task });
     }
-    return api.get(`/tasks/${id}`);
+    // 프로젝트 ID가 없는 경우 기본값 1 사용 (모든 태스크는 프로젝트에 속해야 함)
+    return api.get(`/projects/1/tasks/${id}`);
   },
   
   // 프로젝트 내 태스크 상세 조회
@@ -308,14 +309,14 @@ export const taskApi = {
 
 // 작업 관련 API
 export const jobApi = {
-  getJobsForTask: (taskId: number) => {
-    return api.get(`/projects/1/tasks/${taskId}/jobs`);
+  getJobsForTask: (taskId: number, projectId: number = 1) => {
+    return api.get(`/projects/${projectId}/tasks/${taskId}/jobs`);
   },
   getJobById: (projectId: number, taskId: number, jobId: number) => {
     return api.get(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}`);
   },
-  createJob: (taskId: number, jobData: any) => {
-    return api.post(`/projects/1/tasks/${taskId}/jobs`, jobData);
+  createJob: (taskId: number, jobData: any, projectId: number = 1) => {
+    return api.post(`/projects/${projectId}/tasks/${taskId}/jobs`, jobData);
   },
   updateJob: (projectId: number, taskId: number, jobId: number, jobData: any) => {
     return api.put(`/projects/${projectId}/tasks/${taskId}/jobs/${jobId}`, jobData);

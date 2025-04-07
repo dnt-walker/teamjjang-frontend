@@ -139,7 +139,9 @@ const TaskDetail = () => {
   const navigate = useNavigate();
   
   const [task, setTask] = useState<Task | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [jobsLoading, setJobsLoading] = useState<boolean>(true);
   const [expandedRowKeys, setExpandedRowKeys] = useState<number[]>([]);
   const [showJobForm, setShowJobForm] = useState<boolean>(false);
   const [jobFormLoading, setJobFormLoading] = useState<boolean>(false);
@@ -156,7 +158,15 @@ const TaskDetail = () => {
       
       try {
         setLoading(true);
-        const response = await taskApi.getTaskById(parseInt(taskId));
+        let response;
+        
+        // 프로젝트 ID가 있는 경우와 없는 경우 구분
+        if (projectId) {
+          response = await taskApi.getTaskInProject(parseInt(projectId), parseInt(taskId));
+        } else {
+          response = await taskApi.getTaskById(parseInt(taskId));
+        }
+        
         setTask(response.data);
       } catch (error) {
         console.error('Error fetching task details:', error);
@@ -167,7 +177,32 @@ const TaskDetail = () => {
     };
     
     fetchTaskDetails();
-  }, [taskId]);
+  }, [taskId, projectId]);
+  
+  // 태스크가 로드된 후 Jobs 목록 불러오기
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!taskId) return;
+      
+      try {
+        setJobsLoading(true);
+        const pId = projectId ? parseInt(projectId) : 1; // 프로젝트 ID가 없으면 기본값 1 사용
+        const response = await jobApi.getJobsForTask(parseInt(taskId), pId);
+        console.log('Jobs loaded:', response.data);
+        setJobs(response.data || []);
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        message.error('작업 목록을 불러오는데 실패했습니다.');
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+    
+    // 태스크가 로드된 후에만 Jobs 조회
+    if (task && task.id) {
+      fetchJobs();
+    }
+  }, [taskId, projectId, task]);
   
   // 태스크 상태 정보
   const getTaskStatus = () => {
@@ -201,20 +236,16 @@ const TaskDetail = () => {
       };
       delete jobData.timeRange;
       
-      // API 호출 (현재는 목업 데이터 사용 중이므로 임시 구현)
       if (task && task.id) {
-        // 실제 API 호출 대신 목업 데이터 수정
-        const newJob = {
-          id: Date.now(), // 임시 ID 생성
-          ...jobData
-        };
+        // 실제 API 호출
+        const pId = projectId ? parseInt(projectId) : 1;
+        const response = await jobApi.createJob(parseInt(taskId!), jobData, pId);
         
-        // 태스크에 새 작업 추가
-        const updatedJobs = [...(task.jobs || []), newJob];
-        setTask({
-          ...task,
-          jobs: updatedJobs
-        });
+        // 새로 추가된 job
+        const newJob = response.data;
+        
+        // jobs 목록 업데이트
+        setJobs([...jobs, newJob]);
         
         message.success('작업이 추가되었습니다.');
         setShowJobForm(false);
@@ -275,7 +306,6 @@ const TaskDetail = () => {
       
       // 시간 데이터 변환
       const jobData = {
-        ...values,
         name: values.editName,
         assignedUser: values.editAssignedUser,
         startTime: values.editTimeRange ? values.editTimeRange[0]?.toISOString() : new Date().toISOString(),
@@ -285,31 +315,20 @@ const TaskDetail = () => {
         completed: isCompleted
       };
       
-      // API 호출 (현재는 목업 데이터 사용 중이므로 임시 구현)
       if (task && editingJobId) {
-        // 태스크에서 수정할 작업 찾기
-        const updatedJobs = task.jobs.map(job => {
+        // 실제 API 호출
+        const pId = projectId ? parseInt(projectId) : 1;
+        const response = await jobApi.updateJob(pId, parseInt(taskId!), editingJobId, jobData);
+        
+        // jobs 목록 업데이트
+        const updatedJobs = jobs.map(job => {
           if (job.id === editingJobId) {
-            return {
-              ...job,
-              name: jobData.name,
-              assignedUser: jobData.assignedUser,
-              description: jobData.description,
-              startTime: jobData.startTime,
-              endTime: jobData.endTime,
-              status: jobData.status,
-              completed: jobData.completed,
-              completionTime: jobData.completed && !job.completed ? new Date().toISOString() : 
-                             !jobData.completed && job.completed ? null : job.completionTime
-            };
+            return response.data; // 서버에서 반환한 업데이트된 작업 사용
           }
           return job;
         });
         
-        setTask({
-          ...task,
-          jobs: updatedJobs
-        });
+        setJobs(updatedJobs);
         
         message.success('작업이 수정되었습니다.');
         setEditingJobId(null);
@@ -644,10 +663,15 @@ const TaskDetail = () => {
             </Button>
         }
       >
-        {task.jobs && task.jobs.length > 0 ? (
+        {jobsLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin />
+            <p>작업 목록을 불러오는 중...</p>
+          </div>
+        ) : jobs.length > 0 ? (
           <Table 
             columns={jobColumns} 
-            dataSource={task.jobs.map(job => ({ ...job, key: job.id }))} 
+            dataSource={jobs.map(job => ({ ...job, key: job.id }))} 
             pagination={false}
             size="middle"
             expandable={{
