@@ -1,0 +1,31 @@
+.custom-sider .app-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent !important;
+  margin-bottom: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.custom-sider .app-logo h2 {
+  color: white;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* 사이드바 로고 영역 배경색 제거 */
+.custom-sider .ant-layout-sider-children > div:first-child {
+  background-color: transparent !important;
+  margin-top: 8px;
+}
+
+/* 메뉴 스타일 조정 */
+.custom-sider .ant-menu {
+  margin-top: 4px;
+}

@@ -62,10 +62,31 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} width={250}>
-        <div className="logo" style={{ margin: 16, textAlign: 'center' }}>
-          <h2 style={{ color: 'white', margin: 0 }}>
-            {collapsed ? '업무' : '업무 일지 시스템'}
+      <Sider
+        trigger={null} 
+        collapsible 
+        collapsed={collapsed} 
+        width={250}
+      >
+        <div style={{
+          height: '64px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#001529', // antd dark theme 기본 배경색과 동일
+          borderBottom: 'none'
+        }}>
+          <h2 style={{
+            color: 'white',
+            margin: 0,
+            padding: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: collapsed ? '16px' : '18px',
+            maxWidth: collapsed ? '60px' : '200px'
+          }}>
+            {collapsed ? 'TJ' : 'TeamJJang'}
           </h2>
         </div>
         <Menu

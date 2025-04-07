@@ -44,8 +44,8 @@ const Login = () => {
     <div className="login-container">
       <Card className="login-form">
         <div className="login-form-title">
-          <Title level={2}>업무 일지 시스템</Title>
-          <Typography.Paragraph>로그인하여 업무 관리를 시작하세요</Typography.Paragraph>
+          <Title level={2}>TeamJJang</Title>
+          <Typography.Paragraph>로그인하여 프로젝트 및 업무 관리를 시작하세요</Typography.Paragraph>
           <Typography.Text type="secondary">
             테스트 계정: admin / password 또는 user / password
           </Typography.Text>

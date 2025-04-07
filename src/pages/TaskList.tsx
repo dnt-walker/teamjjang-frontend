@@ -83,7 +83,34 @@ const TaskList = () => {
         });
       }
       
-      setTasks(response.data);
+      // 상태 필터링이 있으면 프론트에서 한번 더 처리
+      let filteredTasks = response.data;
+      if (selectedStatus && filteredTasks.length > 0) {
+        // 완료된 태스크 필터링
+        if (selectedStatus === 'succeeded' || selectedStatus === 'finished') {
+          filteredTasks = filteredTasks.filter(task => task.completionDate !== null);
+        }
+        // 진행 중인 태스크 필터링
+        else if (selectedStatus === 'in-process') {
+          filteredTasks = filteredTasks.filter(task => 
+            task.completionDate === null && new Date(task.plannedEndDate) >= new Date()
+          );
+        }
+        // 지연된 태스크 필터링
+        else if (selectedStatus === 'failed') {
+          filteredTasks = filteredTasks.filter(task =>
+            task.completionDate === null && new Date(task.plannedEndDate) < new Date()
+          );
+        }
+        // 대기 중인 태스크 필터링
+        else if (selectedStatus === 'waiting' || selectedStatus === 'created') {
+          filteredTasks = filteredTasks.filter(task => 
+            task.completionDate === null && new Date(task.startDate) > new Date()
+          );
+        }
+      }
+      
+      setTasks(filteredTasks);
     } catch (err) {
       console.error('Error fetching tasks:', err);
       message.error('업무 목록을 불러오는데 실패했습니다.');
@@ -411,11 +438,11 @@ const TaskList = () => {
               menu={{
                 items: [
                   { key: 'all', label: '전체 상태' },
-                  { key: 'created', label: '생성됨' },
+                  { key: 'created', label: '시작 전' },
                   { key: 'waiting', label: '대기 중' },
                   { key: 'in-process', label: '진행 중' },
                   { key: 'succeeded', label: '완료됨' },
-                  { key: 'failed', label: '실패' }
+                  { key: 'failed', label: '지연됨' }
                 ],
                 onClick: ({ key }) => {
                   setSelectedStatus(key === 'all' ? null : key);
@@ -429,11 +456,11 @@ const TaskList = () => {
                     <ClockCircleOutlined /> 
                     {selectedStatus 
                       ? ({
-                          'created': '생성됨',
+                          'created': '시작 전',
                           'waiting': '대기 중',
                           'in-process': '진행 중',
                           'succeeded': '완료됨',
-                          'failed': '실패'
+                          'failed': '지연됨'
                         }[selectedStatus] || '전체 상태')
                       : '전체 상태'}
                   </span>
