@@ -20,7 +20,8 @@ import {
   DatePicker,
   Tooltip,
   Collapse,
-  Switch
+  Switch,
+  Select
 } from 'antd';
 import { 
   ArrowLeftOutlined,
@@ -34,7 +35,9 @@ import {
   DownOutlined,
   RightOutlined,
   SaveOutlined,
-  CloseOutlined
+  CloseOutlined,
+  PauseCircleOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { taskApi, jobApi } from '../services/api';
@@ -44,6 +47,59 @@ import AppLayout from '../components/layout/AppLayout';
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
+const { Option } = Select;
+
+// 작업 상태 태그 컴포넌트
+interface JobStatusTagProps {
+  status: string;
+}
+
+const JobStatusTag: React.FC<JobStatusTagProps> = ({ status }) => {
+  // 상태에 따른 태그 표시 데이터
+  const statusConfig: Record<string, { text: string, color: string, icon: React.ReactNode }> = {
+    'created': {
+      text: '미진행',
+      color: 'default',
+      icon: <MinusCircleOutlined />
+    },
+    'waiting': {
+      text: '대기중',
+      color: 'default',
+      icon: <MinusCircleOutlined />
+    },
+    'in-process': {
+      text: '진행중',
+      color: 'processing',
+      icon: <ClockCircleOutlined />
+    },
+    'cancel': {
+      text: '취소됨',
+      color: 'error',
+      icon: <PauseCircleOutlined />
+    },
+    'finished': {
+      text: '완료',
+      color: 'success',
+      icon: <CheckCircleOutlined />
+    },
+    'removed': {
+      text: '삭제됨',
+      color: 'default',
+      icon: <MinusCircleOutlined />
+    }
+  };
+
+  // 상태값이 없거나 정의되지 않은 경우 기본값 표시
+  const config = status && statusConfig[status] 
+    ? statusConfig[status] 
+    : { text: '상태 미정', color: 'default', icon: <MinusCircleOutlined /> };
+
+  return (
+    <Tag color={config.color} icon={config.icon}>
+      {config.text}
+    </Tag>
+  );
+};
 
 interface Job {
   id: number;
@@ -54,6 +110,7 @@ interface Job {
   endTime: string;
   completionTime: string | null;
   completed: boolean;
+  status?: string;
 }
 
 interface Task {
@@ -67,6 +124,15 @@ interface Task {
   assignees: string[];
   jobs: Job[];
 }
+
+// 작업 상태 정의
+const AVAILABLE_STATUSES = [
+  { value: 'created', label: '미진행' },
+  { value: 'waiting', label: '대기중' },
+  { value: 'in-process', label: '진행중' },
+  { value: 'cancel', label: '취소됨' },
+  { value: 'finished', label: '완료' }
+];
 
 const TaskDetail = () => {
   const { projectId, taskId } = useParams<{ projectId: string, taskId: string }>();
@@ -121,13 +187,17 @@ const TaskDetail = () => {
     try {
       setJobFormLoading(true);
       
+      // 상태에 따른 완료 여부 설정
+      const isCompleted = ['finished'].includes(values.status);
+      
       // 시간 데이터 변환
       const jobData = {
         ...values,
         startTime: values.timeRange ? values.timeRange[0]?.toISOString() : new Date().toISOString(),
         endTime: values.timeRange ? values.timeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
-        completed: false,
-        completionTime: null
+        completed: isCompleted,
+        completionTime: isCompleted ? new Date().toISOString() : null,
+        status: values.status || 'created'
       };
       delete jobData.timeRange;
       
@@ -174,7 +244,7 @@ const TaskDetail = () => {
       editName: job.name,
       editAssignedUser: job.assignedUser,
       editDescription: job.description,
-      editCompleted: job.completed
+      editStatus: job.status || 'created'
     });
     
     // 날짜 값 설정 (dayjs 사용)
@@ -200,6 +270,9 @@ const TaskDetail = () => {
   // 작업 수정 제출 핸들러
   const handleJobUpdate = async (values: any) => {
     try {
+      // 상태에 따른 완료 여부 설정
+      const isCompleted = ['finished'].includes(values.editStatus);
+      
       // 시간 데이터 변환
       const jobData = {
         ...values,
@@ -208,7 +281,8 @@ const TaskDetail = () => {
         startTime: values.editTimeRange ? values.editTimeRange[0]?.toISOString() : new Date().toISOString(),
         endTime: values.editTimeRange ? values.editTimeRange[1]?.toISOString() : new Date(Date.now() + 86400000).toISOString(),
         description: values.editDescription,
-        completed: values.editCompleted
+        status: values.editStatus,
+        completed: isCompleted
       };
       
       // API 호출 (현재는 목업 데이터 사용 중이므로 임시 구현)
@@ -223,8 +297,10 @@ const TaskDetail = () => {
               description: jobData.description,
               startTime: jobData.startTime,
               endTime: jobData.endTime,
+              status: jobData.status,
               completed: jobData.completed,
-              completionTime: jobData.completed && !job.completed ? new Date().toISOString() : job.completionTime
+              completionTime: jobData.completed && !job.completed ? new Date().toISOString() : 
+                             !jobData.completed && job.completed ? null : job.completionTime
             };
           }
           return job;
@@ -293,11 +369,15 @@ const TaskDetail = () => {
             </Form.Item>
             
             <Form.Item
-              name="editCompleted"
-              valuePropName="checked"
-              label="완료 여부"
+              name="editStatus"
+              label="작업 상태"
+              rules={[{ required: true, message: '상태를 선택해주세요' }]}
             >
-              <Switch checkedChildren="완료" unCheckedChildren="진행중" />
+              <Select>
+                {AVAILABLE_STATUSES.map(status => (
+                  <Option key={status.value} value={status.value}>{status.label}</Option>
+                ))}
+              </Select>
             </Form.Item>
             
             <Form.Item>
@@ -338,10 +418,14 @@ const TaskDetail = () => {
             <Tag icon={<UserOutlined />}>{record.assignedUser}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="상태" span={1}>
-            {record.completed ? (
-              <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>
+            {record.status ? (
+              <JobStatusTag status={record.status} />
             ) : (
-              <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>
+              record.completed ? (
+                <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>
+              ) : (
+                <Tag icon={<ClockCircleOutlined />} color="processing">진행중</Tag>
+              )
             )}
           </Descriptions.Item>
           <Descriptions.Item label="시작 시간" span={1}>
@@ -393,7 +477,9 @@ const TaskDetail = () => {
       title: '상태',
       key: 'status',
       render: (_, record) => {
-        if (record.completed) {
+        if (record.status) {
+          return <JobStatusTag status={record.status} />;
+        } else if (record.completed) {
           return <Tag icon={<CheckCircleOutlined />} color="success">완료</Tag>;
         } else if (record.endTime && new Date(record.endTime) < new Date()) {
           return <Tag icon={<ExclamationCircleOutlined />} color="error">지연</Tag>;
@@ -577,7 +663,7 @@ const TaskDetail = () => {
               layout="vertical"
               onFinish={handleJobSubmit}
               initialValues={{
-                // DatePicker의 초기값을 설정하지 않음
+                status: 'created' // 기본 상태 값
               }}
             >
               <Row gutter={16}>
@@ -601,13 +687,30 @@ const TaskDetail = () => {
                 </Col>
               </Row>
               
-              <Form.Item
-                name="timeRange"
-                label="시작/종료 시간"
-                rules={[{ required: true, message: '시간을 선택해주세요' }]}
-              >
-                <RangePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
-              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="timeRange"
+                    label="시작/종료 시간"
+                    rules={[{ required: true, message: '시간을 선택해주세요' }]}
+                  >
+                    <RangePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="status"
+                    label="작업 상태"
+                    rules={[{ required: true, message: '상태를 선택해주세요' }]}
+                  >
+                    <Select>
+                      {AVAILABLE_STATUSES.map(status => (
+                        <Option key={status.value} value={status.value}>{status.label}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
               
               <Form.Item
                 name="description"
