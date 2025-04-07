@@ -65,15 +65,15 @@ const ProjectCreate = () => {
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ marginBottom: 16 }}>
         <Button 
           icon={<ArrowLeftOutlined />} 
-          style={{ marginRight: 16 }}
+          style={{ marginBottom: 16 }}
           onClick={() => navigate('/projects')}
         >
           프로젝트 목록으로
         </Button>
-        <Title level={2} style={{ margin: 0 }}>새 프로젝트 생성</Title>
+        <Title level={2}>새 프로젝트 생성</Title>
       </div>
 
       <Card>

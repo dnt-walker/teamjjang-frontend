@@ -153,7 +153,7 @@ const ProjectList = () => {
   return (
     <AppLayout>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={2}>프로젝트 목록</Title>
+        <Title level={2}>프로젝트 관리</Title>
         <Button 
           type="primary" 
           icon={<PlusOutlined />}

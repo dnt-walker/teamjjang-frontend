@@ -73,9 +73,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           height: '64px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: collapsed ? 'center' : 'flex-start',
           backgroundColor: '#001529', // antd dark theme 기본 배경색과 동일
-          borderBottom: 'none'
+          borderBottom: 'none',
+          paddingLeft: collapsed ? '0' : '16px'
         }}>
           <h2 style={{
             color: 'white',
@@ -83,7 +84,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             padding: 0,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            textAlign: collapsed ? 'center' : 'left',
             fontSize: collapsed ? '16px' : '18px',
             maxWidth: collapsed ? '60px' : '200px'
           }}>

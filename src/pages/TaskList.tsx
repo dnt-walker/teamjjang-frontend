@@ -389,7 +389,7 @@ const TaskList = () => {
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ marginBottom: 16 }}>
         <Title level={2}>업무 목록</Title>
       </div>
       
