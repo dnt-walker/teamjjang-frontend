@@ -1,0 +1,23 @@
+// TaskDetail.tsx 파일에서 버튼 텍스트 결정 로직을 다음과 같이 수정
+// 업무 목록에서 접근한 경우: '목록으로 돌아가기'
+// 프로젝트 상세에서 접근한 경우: '프로젝트로 돌아가기'
+const getButtonText = () => {
+  // URL에서 이전 경로 확인 (referrer 사용)
+  const referrer = document.referrer;
+  
+  // ProjectId가 있고, URL에 /tasks/가 포함되어 있다면 (업무 목록에서 접근)
+  if (projectId && referrer && referrer.includes('/tasks/')) {
+    return '목록으로 돌아가기';
+  }
+  
+  // ProjectId가 있고, 다른 경로에서 접근했다면 (프로젝트 상세에서 접근)
+  if (projectId) {
+    return '프로젝트로 돌아가기';
+  }
+  
+  // ProjectId가 없는 경우
+  return '업무 목록으로 돌아가기';
+};
+
+// 버튼 텍스트에 getButtonText() 함수 호출 결과 사용
+{getButtonText()}

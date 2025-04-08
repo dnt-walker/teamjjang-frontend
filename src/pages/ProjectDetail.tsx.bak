@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Typography, 
   Card, 
@@ -58,12 +59,14 @@ interface Task {
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [taskLoading, setTaskLoading] = useState<boolean>(true);
+  
+  // 이전 페이지 경로 확인
+  const location = useLocation();
   
   useEffect(() => {
     const fetchProjectDetails = async () => {

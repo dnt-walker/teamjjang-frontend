@@ -29,3 +29,21 @@
 .custom-sider .ant-menu {
   margin-top: 4px;
 }
+
+/* 하단 고정 메뉴 스타일 */
+.bottom-fixed-menu {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #001529; /* 사이드바와 동일한 색상 */
+  transition: width 0.2s;
+}
+
+.bottom-fixed-menu .ant-menu-item {
+  margin: 0 !important;
+}
+
+/* 사이드바 메뉴 영역에 하단 여백 추가 */
+.custom-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

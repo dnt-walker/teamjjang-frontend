@@ -616,7 +616,7 @@ const TaskDetail = () => {
               }
             }}
           >
-            {projectId ? "프로젝트로 돌아가기" : "업무 목록으로 돌아가기"}
+            {projectId ? '프로젝트로 돌아가기' : '업무 목록으로 돌아가기'}
           </Button>
         </div>
       </AppLayout>
@@ -637,7 +637,7 @@ const TaskDetail = () => {
             }
           }}
         >
-          {projectId ? "프로젝트로 돌아가기" : "업무 목록으로 돌아가기"}
+          {projectId ? '프로젝트로 돌아가기' : '업무 목록으로 돌아가기'}
         </Button>
       </div>
       
